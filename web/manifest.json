@@ -1,0 +1,36 @@
+{
+    "name": "Riego Automatizado",
+    "short_name": "Riego",
+    "description": "Sistema de riego inteligente - Paltos Ayacucho",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f1a14",
+    "theme_color": "#2d6a4f",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
