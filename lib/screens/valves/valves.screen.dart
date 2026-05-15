@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/valve.provider.dart';
 import '../../models/valve.model.dart';
 import '../../services/socket.service.dart';
+import '../../widgets/common/error_snackbar.dart';
 
 class ValvesScreen extends ConsumerStatefulWidget {
   const ValvesScreen({super.key});
@@ -94,10 +95,21 @@ class _ValvesList extends ConsumerWidget {
                 child: _ZoneButton(
                   nombre:  zoneName,
                   isOpen:  allOpen,
-                  onTap: () => ref.read(valveProvider.notifier).sendZoneCommand(
-                    zoneId,
-                    allOpen ? 'cerrar' : 'abrir',
-                  ),
+                  onTap: () async {
+                    try {
+                      await ref.read(valveProvider.notifier).sendZoneCommand(
+                        zoneId,
+                        allOpen ? 'cerrar' : 'abrir',
+                      );
+                    } catch (e) {
+                      if (context.mounted) {
+                        showErrorSnackbar(
+                          context,
+                          e.toString().replaceAll('Exception: ', ''),
+                        );
+                      }
+                    }
+                  },
                 ),
               ),
             );
@@ -229,10 +241,21 @@ class _ValveCard extends ConsumerWidget {
           activeColor:    const Color(0xFF52b788),
           inactiveThumbColor: const Color(0xFF4a5a50),
           inactiveTrackColor: const Color(0xFF2d3a30),
-          onChanged: (_) => ref.read(valveProvider.notifier).sendCommand(
-            valve.valveId,
-            isOpen ? 'cerrar' : 'abrir',
-          ),
+          onChanged: (_) async {
+            try {
+              await ref.read(valveProvider.notifier).sendCommand(
+                valve.valveId,
+                isOpen ? 'cerrar' : 'abrir',
+              );
+            } catch (e) {
+              if (context.mounted) {
+                showErrorSnackbar(
+                  context,
+                  e.toString().replaceAll('Exception: ', ''),
+                );
+              }
+            }
+          },
         ),
       ),
     );

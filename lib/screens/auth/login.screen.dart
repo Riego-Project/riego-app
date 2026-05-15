@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth.provider.dart';
+import '../../widgets/common/error_snackbar.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -40,11 +41,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen(authProvider, (_, next) {
       next.whenOrNull(
-        error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+        error: (e, _) => showErrorSnackbar(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
         ),
       );
     });

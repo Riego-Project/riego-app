@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../models/valve.model.dart';
 import '../../providers/valve.provider.dart';
+import '../../widgets/common/error_snackbar.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -111,9 +112,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   child: _ValvePanel(
                     valve:     selectedValve,
                     onClose:   () => setState(() => _selectedValveId = null),
-                    onCommand: (accion) => ref
-                        .read(valveProvider.notifier)
-                        .sendCommand(selectedValve.valveId, accion),
+                    onCommand: (accion) async {
+                      try {
+                        await ref.read(valveProvider.notifier)
+                            .sendCommand(selectedValve.valveId, accion);
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                            context,
+                            e.toString().replaceAll('Exception: ', ''),
+                          );
+                        }
+                      }
+                    },
                   ),
                 ),
             ],
