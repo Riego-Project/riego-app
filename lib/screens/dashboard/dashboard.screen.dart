@@ -67,6 +67,13 @@ class DashboardScreen extends ConsumerWidget {
               onTap:    () {}, // fase 2
               disabled: true,
             ),
+            const SizedBox(height: 16),
+            _DashboardCard(
+              icon:     Icons.map_rounded,
+              titulo:   'Mapa',
+              subtitulo: 'Ver válvulas en vista satelital',
+              onTap:    () => context.go('/dashboard/mapa'),
+            ),
           ],
         ),
       ),

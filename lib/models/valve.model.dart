@@ -1,13 +1,15 @@
 class ValveModel {
-  final int    id;
-  final String valveId;
-  final String nombre;
-  final int    canalRele;
-  final String estado;
-  final bool   activa;
-  final int    zoneId;
-  final String zoneNombre;
-  final String nodeId;
+  final int     id;
+  final String  valveId;
+  final String  nombre;
+  final int     canalRele;
+  final String  estado;
+  final bool    activa;
+  final int     zoneId;
+  final String  zoneNombre;
+  final String  nodeId;
+  final double? latitud;   // nuevo
+  final double? longitud;  // nuevo
 
   const ValveModel({
     required this.id,
@@ -19,9 +21,12 @@ class ValveModel {
     required this.zoneId,
     required this.zoneNombre,
     required this.nodeId,
+    this.latitud,
+    this.longitud,
   });
 
   bool get isOpen => estado == 'ABIERTA';
+  bool get hasLocation => latitud != null && longitud != null;
 
   factory ValveModel.fromJson(Map<String, dynamic> json) {
     return ValveModel(
@@ -34,6 +39,8 @@ class ValveModel {
       zoneId:     json['zone']['id'] as int,
       zoneNombre: json['zone']['nombre'] as String,
       nodeId:     json['node']['nodeId'] as String,
+      latitud:    (json['latitud'] as num?)?.toDouble(),
+      longitud:   (json['longitud'] as num?)?.toDouble(),
     );
   }
 
@@ -48,6 +55,8 @@ class ValveModel {
       zoneId:     zoneId,
       zoneNombre: zoneNombre,
       nodeId:     nodeId,
+      latitud:    latitud,
+      longitud:   longitud,
     );
   }
 }
