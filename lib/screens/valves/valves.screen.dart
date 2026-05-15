@@ -81,95 +81,70 @@ class _ValvesList extends ConsumerWidget {
       zones.putIfAbsent(v.zoneId, () => []).add(v);
     }
 
-    // Verificar si algún nodo está offline
-    final hayNodoOffline = valves.any((v) => !v.nodoOnline);
-
-    return Column(
-      children: [
-        if (hayNodoOffline)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: const Color(0xFF7f1d1d),
-            child: Row(
-              children: const [
-                Icon(Icons.wifi_off_rounded, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Nodo sin conexión — los comandos no llegarán al campo',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+    return Expanded(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Botones de zona completa
+          Row(
+            children: zones.entries.map((entry) {
+              final zoneId = entry.key;
+              final zoneName = entry.value.first.zoneNombre;
+              final allOpen = entry.value.every((v) => v.isOpen);
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _ZoneButton(
+                    nombre: zoneName,
+                    isOpen: allOpen,
+                    onTap: () async {
+                      try {
+                        await ref
+                            .read(valveProvider.notifier)
+                            .sendZoneCommand(
+                              zoneId,
+                              allOpen ? 'cerrar' : 'abrir',
+                            );
+                      } catch (e) {
+                        if (context.mounted) {
+                          showErrorSnackbar(
+                            context,
+                            e.toString().replaceAll('Exception: ', ''),
+                          );
+                        }
+                      }
+                    },
                   ),
                 ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // Válvulas individuales por zona
+          ...zones.entries.map(
+            (entry) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    entry.value.first.zoneNombre,
+                    style: const TextStyle(
+                      color: Color(0xFF52b788),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                ...entry.value.map((valve) => _ValveCard(valve: valve)),
+                const SizedBox(height: 8),
               ],
             ),
           ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Botones de zona completa
-              Row(
-                children: zones.entries.map((entry) {
-                  final zoneId = entry.key;
-                  final zoneName = entry.value.first.zoneNombre;
-                  final allOpen = entry.value.every((v) => v.isOpen);
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _ZoneButton(
-                        nombre: zoneName,
-                        isOpen: allOpen,
-                        onTap: () async {
-                          try {
-                            await ref
-                                .read(valveProvider.notifier)
-                                .sendZoneCommand(
-                                  zoneId,
-                                  allOpen ? 'cerrar' : 'abrir',
-                                );
-                          } catch (e) {
-                            if (context.mounted) {
-                              showErrorSnackbar(
-                                context,
-                                e.toString().replaceAll('Exception: ', ''),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-
-              // Válvulas individuales por zona
-              ...zones.entries.map(
-                (entry) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        entry.value.first.zoneNombre,
-                        style: const TextStyle(
-                          color: Color(0xFF52b788),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    ...entry.value.map((valve) => _ValveCard(valve: valve)),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -177,20 +152,24 @@ class _ValvesList extends ConsumerWidget {
 class _ZoneButton extends StatelessWidget {
   final String nombre;
   final bool isOpen;
+  final bool isOnline;
   final VoidCallback onTap;
 
   const _ZoneButton({
     required this.nombre,
     required this.isOpen,
+    required this.isOnline,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onTap,
+      onPressed: isOnline ? onTap : null,
       style: ElevatedButton.styleFrom(
-        backgroundColor: isOpen
+        backgroundColor: !isOnline
+            ? const Color(0xFF374151)
+            : isOpen
             ? const Color(0xFF9b1c1c)
             : const Color(0xFF2d6a4f),
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -199,12 +178,20 @@ class _ZoneButton extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            isOpen ? Icons.stop_circle_outlined : Icons.play_circle_outline,
+            !isOnline
+                ? Icons.wifi_off_rounded
+                : isOpen
+                ? Icons.stop_circle_outlined
+                : Icons.play_circle_outline,
             color: Colors.white,
           ),
           const SizedBox(height: 4),
           Text(
-            isOpen ? 'Cerrar $nombre' : 'Abrir $nombre',
+            !isOnline
+                ? 'Sin conexión'
+                : isOpen
+                ? 'Cerrar $nombre'
+                : 'Abrir $nombre',
             style: const TextStyle(color: Colors.white, fontSize: 12),
             textAlign: TextAlign.center,
           ),
@@ -222,6 +209,7 @@ class _ValveCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOpen = valve.isOpen;
+    final isOnline = valve.nodoOnline;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -229,25 +217,54 @@ class _ValveCard extends ConsumerWidget {
         color: const Color(0xFF1a2f20),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isOpen ? const Color(0xFF52b788) : const Color(0xFF2d3a30),
-          width: isOpen ? 1.5 : 1,
+          color: !isOnline
+              ? const Color(0xFF7f1d1d)
+              : isOpen
+              ? const Color(0xFF52b788)
+              : const Color(0xFF2d3a30),
+          width: 1.5,
         ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isOpen
-                ? const Color(0xFF52b788).withOpacity(0.2)
-                : const Color(0xFF2d3a30),
-          ),
-          child: Icon(
-            isOpen ? Icons.water_drop : Icons.water_drop_outlined,
-            color: isOpen ? const Color(0xFF52b788) : const Color(0xFF4a5a50),
-          ),
+        leading: Stack(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isOpen
+                    ? const Color(0xFF52b788).withOpacity(0.2)
+                    : const Color(0xFF2d3a30),
+              ),
+              child: Icon(
+                isOpen ? Icons.water_drop : Icons.water_drop_outlined,
+                color: isOpen
+                    ? const Color(0xFF52b788)
+                    : const Color(0xFF4a5a50),
+              ),
+            ),
+            // Indicador de estado del nodo
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isOnline
+                      ? const Color(0xFF22c55e)
+                      : const Color(0xFFef4444),
+                  border: Border.all(
+                    color: const Color(0xFF1a2f20),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         title: Text(
           valve.nombre,
@@ -256,16 +273,27 @@ class _ValveCard extends ConsumerWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        subtitle: Text(
-          'Canal ${valve.canalRele} · ${valve.nodeId}',
-          style: const TextStyle(color: Color(0xFF52b788), fontSize: 12),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Canal ${valve.canalRele} · ${valve.nodeId}',
+              style: const TextStyle(color: Color(0xFF52b788), fontSize: 12),
+            ),
+            if (!isOnline)
+              const Text(
+                'Nodo sin conexión',
+                style: TextStyle(
+                  color: Color(0xFFf87171),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
         trailing: Switch(
           value: isOpen,
-          activeThumbColor: const Color(0xFF52b788),
-          inactiveThumbColor: const Color(0xFF4a5a50),
-          inactiveTrackColor: const Color(0xFF2d3a30),
-          onChanged: valve.nodoOnline
+          onChanged: isOnline
               ? (_) async {
                   try {
                     await ref
@@ -284,6 +312,9 @@ class _ValveCard extends ConsumerWidget {
                   }
                 }
               : null,
+          activeColor: const Color(0xFF52b788),
+          inactiveThumbColor: const Color(0xFF4a5a50),
+          inactiveTrackColor: const Color(0xFF2d3a30),
         ),
       ),
     );
