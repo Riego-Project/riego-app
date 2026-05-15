@@ -15,12 +15,38 @@ class ValveNotifier extends AsyncNotifier<List<ValveModel>> {
   }
 
   void _listenToSocket() {
+    // Confirmación de estado de válvula desde ESP32
+    _socket.on('valvula:estado', (data) {
+      state.whenData((valves) {
+        final updated = valves.map((v) {
+          if (v.valveId == data['valveId']) {
+            return v.copyWith(estado: data['estado'] as String);
+          }
+          return v;
+        }).toList();
+        state = AsyncData(updated);
+      });
+    });
+
+    // Nodo se desconecta
     _socket.on('nodo:offline', (data) {
       state.whenData((valves) {
-        // Marcar todas las válvulas de ese nodo como offline
         final updated = valves.map((v) {
           if (v.nodeId == data['nodeId']) {
             return v.copyWith(nodoOnline: false);
+          }
+          return v;
+        }).toList();
+        state = AsyncData(updated);
+      });
+    });
+
+    // Nodo vuelve a conectarse (heartbeat)
+    _socket.on('nodo:estado', (data) {
+      state.whenData((valves) {
+        final updated = valves.map((v) {
+          if (v.nodeId == data['nodeId']) {
+            return v.copyWith(nodoOnline: true);
           }
           return v;
         }).toList();
