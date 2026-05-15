@@ -75,76 +75,74 @@ class _ValvesList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Agrupar por zona
     final zones = <int, List<ValveModel>>{};
     for (final v in valves) {
       zones.putIfAbsent(v.zoneId, () => []).add(v);
     }
 
-    return Expanded(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Botones de zona completa
-          Row(
-            children: zones.entries.map((entry) {
-              final zoneId = entry.key;
-              final zoneName = entry.value.first.zoneNombre;
-              final allOpen = entry.value.every((v) => v.isOpen);
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _ZoneButton(
-                    nombre: zoneName,
-                    isOpen: allOpen,
-                    onTap: () async {
-                      try {
-                        await ref
-                            .read(valveProvider.notifier)
-                            .sendZoneCommand(
-                              zoneId,
-                              allOpen ? 'cerrar' : 'abrir',
-                            );
-                      } catch (e) {
-                        if (context.mounted) {
-                          showErrorSnackbar(
-                            context,
-                            e.toString().replaceAll('Exception: ', ''),
-                          );
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: zones.entries.map((entry) {
+            final zoneId = entry.key;
+            final zoneName = entry.value.first.zoneNombre;
+            final allOpen = entry.value.every((v) => v.isOpen);
+            final isOnline = entry.value.any((v) => v.nodoOnline);
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _ZoneButton(
+                  nombre: zoneName,
+                  isOpen: allOpen,
+                  isOnline: isOnline,
+                  onTap: isOnline
+                      ? () async {
+                          try {
+                            await ref
+                                .read(valveProvider.notifier)
+                                .sendZoneCommand(
+                                  zoneId,
+                                  allOpen ? 'cerrar' : 'abrir',
+                                );
+                          } catch (e) {
+                            if (context.mounted) {
+                              showErrorSnackbar(
+                                context,
+                                e.toString().replaceAll('Exception: ', ''),
+                              );
+                            }
+                          }
                         }
-                      }
-                    },
+                      : () {},
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 24),
+        ...zones.entries.map(
+          (entry) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  entry.value.first.zoneNombre,
+                  style: const TextStyle(
+                    color: Color(0xFF52b788),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+              ...entry.value.map((valve) => _ValveCard(valve: valve)),
+              const SizedBox(height: 8),
+            ],
           ),
-          const SizedBox(height: 24),
-
-          // Válvulas individuales por zona
-          ...zones.entries.map(
-            (entry) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    entry.value.first.zoneNombre,
-                    style: const TextStyle(
-                      color: Color(0xFF52b788),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                ...entry.value.map((valve) => _ValveCard(valve: valve)),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
