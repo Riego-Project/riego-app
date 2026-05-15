@@ -67,7 +67,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 children: [
                   // Capa satelital de ESRI (gratuita)
                   TileLayer(
-                    urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    urlTemplate: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+                    subdomains: const ['0', '1', '2', '3'],
                     userAgentPackageName: 'pe.riego.app',
                   ),
                   // Marcadores de válvulas
