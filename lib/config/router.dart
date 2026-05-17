@@ -5,6 +5,8 @@ import '../screens/auth/login.screen.dart';
 import '../screens/dashboard/dashboard.screen.dart';
 import '../screens/valves/valves.screen.dart';
 import '../../screens/map/map.screen.dart';
+import '../../screens/schedules/schedules.screen.dart';
+
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -34,6 +36,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path:    'mapa',
             builder: (context, state) => const MapScreen(),
+          ),
+          GoRoute(
+            path:    'horarios',
+            builder: (context, state) => const SchedulesScreen(),
           ),
         ],
       ),

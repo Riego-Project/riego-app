@@ -56,8 +56,7 @@ class DashboardScreen extends ConsumerWidget {
               icon:     Icons.schedule_rounded,
               titulo:   'Horarios',
               subtitulo: 'Programar riegos automáticos',
-              onTap:    () {}, // fase siguiente
-              disabled: true,
+              onTap:    () => context.go('/dashboard/horarios'),
             ),
             const SizedBox(height: 16),
             _DashboardCard(
