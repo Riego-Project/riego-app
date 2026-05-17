@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'config/router.dart';
+import 'config/theme/app_theme.dart';
 
 void main() {
   runApp(const ProviderScope(child: RiegoApp()));
@@ -13,15 +14,9 @@ class RiegoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title:        'Riego Automatizado',
+      title: 'Riego IoT',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor:   const Color(0xFF52b788),
-          brightness:  Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
       routerConfig: router,
     );
   }

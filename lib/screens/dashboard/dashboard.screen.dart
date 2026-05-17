@@ -46,32 +46,33 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
             _DashboardCard(
-              icon:    Icons.water_drop_rounded,
-              titulo:  'Válvulas',
+              icon: Icons.water_drop_rounded,
+              titulo: 'Válvulas',
               subtitulo: 'Control manual y estado en tiempo real',
-              onTap:   () => context.go('/dashboard/valvulas'),
+              onTap: () => context.go('/dashboard/valvulas'),
             ),
             const SizedBox(height: 16),
             _DashboardCard(
-              icon:     Icons.schedule_rounded,
-              titulo:   'Horarios',
+              icon: Icons.schedule_rounded,
+              titulo: 'Horarios',
               subtitulo: 'Programar riegos automáticos',
-              onTap:    () => context.go('/dashboard/horarios'),
+              onTap: () => context.go('/dashboard/horarios'),
             ),
             const SizedBox(height: 16),
             _DashboardCard(
-              icon:     Icons.sensors_rounded,
-              titulo:   'Sensores',
+              icon: Icons.sensors_rounded,
+              titulo: 'Sensores',
               subtitulo: 'Humedad de suelo · pH del agua',
-              onTap:    () {}, // fase 2
+              onTap: () {},
+              // fase 2
               disabled: true,
             ),
             const SizedBox(height: 16),
             _DashboardCard(
-              icon:     Icons.map_rounded,
-              titulo:   'Mapa',
+              icon: Icons.map_rounded,
+              titulo: 'Mapa',
               subtitulo: 'Ver válvulas en vista satelital',
-              onTap:    () => context.go('/dashboard/mapa'),
+              onTap: () => context.go('/dashboard/mapa'),
             ),
           ],
         ),
@@ -82,10 +83,10 @@ class DashboardScreen extends ConsumerWidget {
 
 class _DashboardCard extends StatelessWidget {
   final IconData icon;
-  final String   titulo;
-  final String   subtitulo;
+  final String titulo;
+  final String subtitulo;
   final VoidCallback onTap;
-  final bool     disabled;
+  final bool disabled;
 
   const _DashboardCard({
     required this.icon,
@@ -103,16 +104,16 @@ class _DashboardCard extends StatelessWidget {
         color: const Color(0xFF1a2f20),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap:        disabled ? null : onTap,
+          onTap: disabled ? null : onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
                 Container(
-                  padding:      const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color:        const Color(0xFF2d6a4f),
+                    color: const Color(0xFF2d6a4f),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: const Color(0xFF95d5b2), size: 28),
