@@ -16,17 +16,17 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
 
   // Tipo
   String _tipo = 'ZONA';
-  int?   _zonaId;
-  int?   _valveDbId;
+  int? _zonaId;
+  int? _valveDbId;
 
   // Modo
-  String       _modo       = 'SEMANAL';
-  List<int>    _dias       = [];
-  DateTime?    _fechaExacta;
+  String _modo = 'SEMANAL';
+  List<int> _dias = [];
+  DateTime? _fechaExacta;
 
   // Horario
   TimeOfDay _horaApertura = const TimeOfDay(hour: 6, minute: 0);
-  bool      _cierreAuto   = true;
+  bool _cierreAuto = true;
   TimeOfDay? _horaCierre;
 
   bool _loading = false;
@@ -40,8 +40,8 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
   int? get _duracionS {
     if (!_cierreAuto || _horaCierre == null) return null;
     final aperturaMin = _horaApertura.hour * 60 + _horaApertura.minute;
-    final cierreMin   = _horaCierre!.hour * 60 + _horaCierre!.minute;
-    final diff        = cierreMin - aperturaMin;
+    final cierreMin = _horaCierre!.hour * 60 + _horaCierre!.minute;
+    final diff = cierreMin - aperturaMin;
     return diff > 0 ? diff * 60 : null;
   }
 
@@ -61,18 +61,20 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     );
     if (picked != null) {
       setState(() {
-        if (esApertura) _horaApertura = picked;
-        else            _horaCierre   = picked;
+        if (esApertura)
+          _horaApertura = picked;
+        else
+          _horaCierre = picked;
       });
     }
   }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
-      context:     context,
+      context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate:   DateTime.now(),
-      lastDate:    DateTime.now().add(const Duration(days: 365)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
           colorScheme: const ColorScheme.dark(primary: Color(0xFF52b788)),
@@ -83,7 +85,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     if (picked == null) return;
     if (!context.mounted) return;
     final hora = await showTimePicker(
-      context:     context,
+      context: context,
       initialTime: _horaApertura,
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
@@ -94,10 +96,16 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     );
     if (hora != null) {
       setState(() {
-        _fechaExacta = DateTime(
-          picked.year, picked.month, picked.day,
-          hora.hour, hora.minute,
+        final limaTime = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          hora.hour,
+          hora.minute,
         );
+        // Lima es UTC-5, sumamos 5 horas para convertir a UTC
+        _fechaExacta = limaTime.toUtc();
+
         _horaApertura = hora;
       });
     }
@@ -125,7 +133,10 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
       return;
     }
     if (_cierreAuto && _duracionS == null) {
-      showErrorSnackbar(context, 'La hora de cierre debe ser posterior a la apertura');
+      showErrorSnackbar(
+        context,
+        'La hora de cierre debe ser posterior a la apertura',
+      );
       return;
     }
 
@@ -133,16 +144,18 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
 
     try {
       await ref.read(scheduleProvider.notifier).create({
-        'nombre':      _nombreCtrl.text.trim(),
-        'tipo':        _tipo,
-        'zoneId':      _tipo == 'ZONA' ? _zonaId : null,
-        'valveId':     _tipo == 'VALVULA' ? _valveDbId : null,
-        'modo':        _modo,
-        'dias':        _modo == 'SEMANAL' ? _dias : [],
-        'fechaExacta': _modo == 'FECHA_EXACTA' ? _fechaExacta!.toIso8601String() : null,
-        'hora':        _formatTime(_horaApertura),
-        'cierreAuto':  _cierreAuto,
-        'duracionS':   _duracionS,
+        'nombre': _nombreCtrl.text.trim(),
+        'tipo': _tipo,
+        'zoneId': _tipo == 'ZONA' ? _zonaId : null,
+        'valveId': _tipo == 'VALVULA' ? _valveDbId : null,
+        'modo': _modo,
+        'dias': _modo == 'SEMANAL' ? _dias : [],
+        'fechaExacta': _modo == 'FECHA_EXACTA'
+            ? _fechaExacta!.toIso8601String()
+            : null,
+        'hora': _formatTime(_horaApertura),
+        'cierreAuto': _cierreAuto,
+        'duracionS': _duracionS,
       });
 
       if (mounted) Navigator.pop(context);
@@ -174,13 +187,12 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-
             // ── Nombre ────────────────────────────────────────────────────
             _SectionTitle('Nombre del horario'),
             const SizedBox(height: 8),
             _Field(
               controller: _nombreCtrl,
-              hint:       'Ej: Riego mañanero Zona Norte',
+              hint: 'Ej: Riego mañanero Zona Norte',
             ),
             const SizedBox(height: 20),
 
@@ -189,40 +201,53 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             const SizedBox(height: 8),
             _SegmentedRow(
               options: const ['ZONA', 'VALVULA'],
-              labels:  const ['Zona', 'Válvula'],
-              value:   _tipo,
-              onChanged: (v) => setState(() { _tipo = v; _zonaId = null; _valveDbId = null; }),
+              labels: const ['Zona', 'Válvula'],
+              value: _tipo,
+              onChanged: (v) => setState(() {
+                _tipo = v;
+                _zonaId = null;
+                _valveDbId = null;
+              }),
             ),
             const SizedBox(height: 12),
 
             // Selector zona o válvula
             valvesState.when(
-              loading: () => const CircularProgressIndicator(color: Color(0xFF52b788)),
-              error:   (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
-              data:    (valves) {
+              loading: () =>
+                  const CircularProgressIndicator(color: Color(0xFF52b788)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              data: (valves) {
                 if (_tipo == 'ZONA') {
                   // Zonas únicas
                   final zonas = <int, String>{};
                   for (final v in valves) zonas[v.zoneId] = v.zoneNombre;
 
                   return _Dropdown<int>(
-                    hint:     'Seleccionar zona',
-                    value:    _zonaId,
-                    items:    zonas.entries.map((e) =>
-                        DropdownMenuItem(value: e.key, child: Text(e.value))
-                    ).toList(),
+                    hint: 'Seleccionar zona',
+                    value: _zonaId,
+                    items: zonas.entries
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (v) => setState(() => _zonaId = v),
                   );
                 } else {
                   return _Dropdown<int>(
-                    hint:  'Seleccionar válvula',
+                    hint: 'Seleccionar válvula',
                     value: _valveDbId,
-                    items: valves.map((v) =>
-                        DropdownMenuItem(
-                          value: v.id,
-                          child: Text('${v.nombre} (${v.zoneNombre})'),
+                    items: valves
+                        .map(
+                          (v) => DropdownMenuItem(
+                            value: v.id,
+                            child: Text('${v.nombre} (${v.zoneNombre})'),
+                          ),
                         )
-                    ).toList(),
+                        .toList(),
                     onChanged: (v) => setState(() => _valveDbId = v),
                   );
                 }
@@ -235,8 +260,8 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             const SizedBox(height: 8),
             _SegmentedRow(
               options: const ['SEMANAL', 'FECHA_EXACTA'],
-              labels:  const ['Semanal', 'Fecha exacta'],
-              value:   _modo,
+              labels: const ['Semanal', 'Fecha exacta'],
+              value: _modo,
               onChanged: (v) => setState(() => _modo = v),
             ),
             const SizedBox(height: 12),
@@ -245,7 +270,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               _SectionTitle('Días de la semana'),
               const SizedBox(height: 8),
               _DaySelector(
-                selected:  _dias,
+                selected: _dias,
                 onChanged: (dias) => setState(() => _dias = dias),
               ),
             ] else ...[
@@ -253,10 +278,13 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               const SizedBox(height: 8),
               _TimeButton(
                 label: _fechaExacta != null
-                    ? '${_fechaExacta!.day}/${_fechaExacta!.month}/${_fechaExacta!.year} ${_formatTime(TimeOfDay.fromDateTime(_fechaExacta!))}'
+                    ? () {
+                        final local = _fechaExacta!.toLocal();
+                        return '${local.day}/${local.month}/${local.year} ${_formatTime(TimeOfDay.fromDateTime(local))}';
+                      }()
                     : 'Seleccionar fecha y hora',
-                icon:    Icons.calendar_today_rounded,
-                onTap:   _pickDate,
+                icon: Icons.calendar_today_rounded,
+                onTap: _pickDate,
               ),
             ],
             const SizedBox(height: 20),
@@ -266,9 +294,9 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               _SectionTitle('Hora de apertura'),
               const SizedBox(height: 8),
               _TimeButton(
-                label:  _formatTime(_horaApertura),
-                icon:   Icons.play_circle_outline,
-                onTap:  () => _pickTime(esApertura: true),
+                label: _formatTime(_horaApertura),
+                icon: Icons.play_circle_outline,
+                onTap: () => _pickTime(esApertura: true),
               ),
               const SizedBox(height: 20),
             ],
@@ -277,9 +305,9 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             _SectionTitle('Cierre'),
             const SizedBox(height: 8),
             _SegmentedRow(
-              options:   const ['auto', 'manual'],
-              labels:    const ['Automático', 'Manual'],
-              value:     _cierreAuto ? 'auto' : 'manual',
+              options: const ['auto', 'manual'],
+              labels: const ['Automático', 'Manual'],
+              value: _cierreAuto ? 'auto' : 'manual',
               onChanged: (v) => setState(() => _cierreAuto = v == 'auto'),
             ),
 
@@ -289,7 +317,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                 label: _horaCierre != null
                     ? _formatTime(_horaCierre!)
                     : 'Seleccionar hora de cierre',
-                icon:  Icons.stop_circle_outlined,
+                icon: Icons.stop_circle_outlined,
                 onTap: () => _pickTime(esApertura: false),
               ),
               if (_duracionS != null)
@@ -298,7 +326,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                   child: Text(
                     'Duración: ${_duracionS! ~/ 60} minutos',
                     style: const TextStyle(
-                      color:   Color(0xFF52b788),
+                      color: Color(0xFF52b788),
                       fontSize: 12,
                     ),
                     textAlign: TextAlign.center,
@@ -321,13 +349,13 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                 child: _loading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                  'Guardar horario',
-                  style: TextStyle(
-                    color:      Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize:   15,
-                  ),
-                ),
+                        'Guardar horario',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -341,15 +369,16 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
 
 class _SectionTitle extends StatelessWidget {
   final String text;
+
   const _SectionTitle(this.text);
 
   @override
   Widget build(BuildContext context) => Text(
     text,
     style: const TextStyle(
-      color:       Color(0xFF95d5b2),
-      fontSize:    13,
-      fontWeight:  FontWeight.w600,
+      color: Color(0xFF95d5b2),
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
       letterSpacing: 0.5,
     ),
   );
@@ -358,24 +387,25 @@ class _SectionTitle extends StatelessWidget {
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
+
   const _Field({required this.controller, required this.hint});
 
   @override
   Widget build(BuildContext context) => TextField(
     controller: controller,
-    style:      const TextStyle(color: Colors.white),
+    style: const TextStyle(color: Colors.white),
     decoration: InputDecoration(
-      hintText:    hint,
-      hintStyle:   const TextStyle(color: Color(0xFF3d5a47)),
-      filled:      true,
-      fillColor:   const Color(0xFF1a2f20),
-      border:      OutlineInputBorder(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF3d5a47)),
+      filled: true,
+      fillColor: const Color(0xFF1a2f20),
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide:   BorderSide.none,
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide:   const BorderSide(color: Color(0xFF52b788)),
+        borderSide: const BorderSide(color: Color(0xFF52b788)),
       ),
     ),
   );
@@ -384,7 +414,7 @@ class _Field extends StatelessWidget {
 class _SegmentedRow extends StatelessWidget {
   final List<String> options;
   final List<String> labels;
-  final String       value;
+  final String value;
   final Function(String) onChanged;
 
   const _SegmentedRow({
@@ -403,10 +433,10 @@ class _SegmentedRow extends StatelessWidget {
           child: GestureDetector(
             onTap: () => onChanged(options[i]),
             child: Container(
-              margin:  EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
+              margin: EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color:        isSelected
+                color: isSelected
                     ? const Color(0xFF2d6a4f)
                     : const Color(0xFF1a2f20),
                 borderRadius: BorderRadius.circular(10),
@@ -420,11 +450,11 @@ class _SegmentedRow extends StatelessWidget {
               child: Text(
                 labels[i],
                 style: TextStyle(
-                  color:      isSelected
+                  color: isSelected
                       ? const Color(0xFF95d5b2)
                       : const Color(0xFF4a5a50),
                   fontWeight: FontWeight.w600,
-                  fontSize:   13,
+                  fontSize: 13,
                 ),
               ),
             ),
@@ -436,15 +466,15 @@ class _SegmentedRow extends StatelessWidget {
 }
 
 class _DaySelector extends StatelessWidget {
-  final List<int>       selected;
+  final List<int> selected;
   final Function(List<int>) onChanged;
 
   const _DaySelector({required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    const dias  = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-    const nums  = [1, 2, 3, 4, 5, 6, 7];
+    const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const nums = [1, 2, 3, 4, 5, 6, 7];
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -453,12 +483,14 @@ class _DaySelector extends StatelessWidget {
         return GestureDetector(
           onTap: () {
             final updated = List<int>.from(selected);
-            if (isSelected) updated.remove(nums[i]);
-            else             updated.add(nums[i]);
+            if (isSelected)
+              updated.remove(nums[i]);
+            else
+              updated.add(nums[i]);
             onChanged(updated..sort());
           },
           child: Container(
-            width:  38,
+            width: 38,
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -475,11 +507,11 @@ class _DaySelector extends StatelessWidget {
             child: Text(
               dias[i],
               style: TextStyle(
-                color:      isSelected
+                color: isSelected
                     ? const Color(0xFF95d5b2)
                     : const Color(0xFF4a5a50),
                 fontWeight: FontWeight.bold,
-                fontSize:   13,
+                fontSize: 13,
               ),
             ),
           ),
@@ -490,7 +522,7 @@ class _DaySelector extends StatelessWidget {
 }
 
 class _TimeButton extends StatelessWidget {
-  final String   label;
+  final String label;
   final IconData icon;
   final VoidCallback onTap;
 
@@ -506,9 +538,9 @@ class _TimeButton extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color:        const Color(0xFF1a2f20),
+        color: const Color(0xFF1a2f20),
         borderRadius: BorderRadius.circular(10),
-        border:       Border.all(color: const Color(0xFF2d3a30)),
+        border: Border.all(color: const Color(0xFF2d3a30)),
       ),
       child: Row(
         children: [
@@ -522,7 +554,7 @@ class _TimeButton extends StatelessWidget {
           const Icon(
             Icons.chevron_right_rounded,
             color: Color(0xFF52b788),
-            size:  20,
+            size: 20,
           ),
         ],
       ),
@@ -532,7 +564,7 @@ class _TimeButton extends StatelessWidget {
 
 class _Dropdown<T> extends StatelessWidget {
   final String hint;
-  final T?     value;
+  final T? value;
   final List<DropdownMenuItem<T>> items;
   final Function(T?) onChanged;
 
@@ -547,20 +579,20 @@ class _Dropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color:        const Color(0xFF1a2f20),
+      color: const Color(0xFF1a2f20),
       borderRadius: BorderRadius.circular(10),
-      border:       Border.all(color: const Color(0xFF2d3a30)),
+      border: Border.all(color: const Color(0xFF2d3a30)),
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<T>(
-        value:       value,
-        hint:        Text(hint, style: const TextStyle(color: Color(0xFF3d5a47))),
-        isExpanded:  true,
+        value: value,
+        hint: Text(hint, style: const TextStyle(color: Color(0xFF3d5a47))),
+        isExpanded: true,
         dropdownColor: const Color(0xFF1a2f20),
-        style:       const TextStyle(color: Color(0xFFd8f3dc)),
-        icon:        const Icon(Icons.expand_more, color: Color(0xFF52b788)),
-        items:       items,
-        onChanged:   onChanged,
+        style: const TextStyle(color: Color(0xFFd8f3dc)),
+        icon: const Icon(Icons.expand_more, color: Color(0xFF52b788)),
+        items: items,
+        onChanged: onChanged,
       ),
     ),
   );
