@@ -84,6 +84,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     );
     if (picked == null) return;
     if (!context.mounted) return;
+
     final hora = await showTimePicker(
       context: context,
       initialTime: _horaApertura,
@@ -94,17 +95,21 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
         child: child!,
       ),
     );
+
     if (hora != null) {
       setState(() {
-        final limaTime = DateTime(
+        // 1. Creamos la fecha en el tiempo LOCAL del dispositivo
+        final localDateTime = DateTime(
           picked.year,
           picked.month,
           picked.day,
           hora.hour,
           hora.minute,
         );
-        // Lima es UTC-5, sumamos 5 horas para convertir a UTC
-        _fechaExacta = limaTime.toUtc();
+
+        // 2. Dejamos que Flutter maneje la conversión exacta a UTC
+        // sin importar si el usuario está en Lima, Madrid o Tokyo.
+        _fechaExacta = localDateTime.toUtc();
 
         _horaApertura = hora;
       });
