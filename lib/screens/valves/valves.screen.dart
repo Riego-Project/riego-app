@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/valve.provider.dart';
+import '../../config/theme/app_theme.dart';
 import '../../models/valve.model.dart';
+import '../../providers/valve.provider.dart';
 import '../../services/socket.service.dart';
 import '../../widgets/common/error_snackbar.dart';
 
@@ -24,34 +25,27 @@ class _ValvesScreenState extends ConsumerState<ValvesScreen> {
     final valvesState = ref.watch(valveProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f1a14),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a2f20),
-        title: const Text(
-          'Válvulas',
-          style: TextStyle(color: Color(0xFF95d5b2)),
-        ),
-        iconTheme: const IconThemeData(color: Color(0xFF52b788)),
+        title: const Text('Válvulas'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon:    const Icon(Icons.refresh_rounded),
             onPressed: () => ref.read(valveProvider.notifier).refresh(),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: valvesState.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF52b788)),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
               const SizedBox(height: 16),
               Text(
-                'Error: $e',
-                style: const TextStyle(color: Colors.red),
+                e.toString().replaceAll('Exception: ', ''),
+                style: const TextStyle(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -68,9 +62,9 @@ class _ValvesScreenState extends ConsumerState<ValvesScreen> {
   }
 }
 
+// ── Lista de válvulas ─────────────────────────────────────────────────────────
 class _ValvesList extends ConsumerWidget {
   final List<ValveModel> valves;
-
   const _ValvesList({required this.valves});
 
   @override
@@ -81,76 +75,91 @@ class _ValvesList extends ConsumerWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       children: [
+        // ── Botones de zona ────────────────────────────────────────────────
         Row(
           children: zones.entries.map((entry) {
-            final zoneId = entry.key;
+            final zoneId   = entry.key;
             final zoneName = entry.value.first.zoneNombre;
-            final allOpen = entry.value.every((v) => v.isOpen);
+            final allOpen  = entry.value.every((v) => v.isOpen);
             final isOnline = entry.value.any((v) => v.nodoOnline);
+
             return Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: EdgeInsets.only(
+                  right: entry.key != zones.keys.last ? 10 : 0,
+                ),
                 child: _ZoneButton(
-                  nombre: zoneName,
-                  isOpen: allOpen,
+                  nombre:   zoneName,
+                  isOpen:   allOpen,
                   isOnline: isOnline,
                   onTap: isOnline
                       ? () async {
-                          try {
-                            await ref
-                                .read(valveProvider.notifier)
-                                .sendZoneCommand(
-                                  zoneId,
-                                  allOpen ? 'cerrar' : 'abrir',
-                                );
-                          } catch (e) {
-                            if (context.mounted) {
-                              showErrorSnackbar(
-                                context,
-                                e.toString().replaceAll('Exception: ', ''),
-                              );
-                            }
-                          }
-                        }
+                    try {
+                      await ref.read(valveProvider.notifier)
+                          .sendZoneCommand(zoneId, allOpen ? 'cerrar' : 'abrir');
+                    } catch (e) {
+                      if (context.mounted) {
+                        showErrorSnackbar(context,
+                            e.toString().replaceAll('Exception: ', ''));
+                      }
+                    }
+                  }
                       : () {},
                 ),
               ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 24),
-        ...zones.entries.map(
-          (entry) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  entry.value.first.zoneNombre,
-                  style: const TextStyle(
-                    color: Color(0xFF52b788),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
+        const SizedBox(height: 28),
+
+        // ── Válvulas por zona ──────────────────────────────────────────────
+        ...zones.entries.map((entry) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width:  3,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color:        AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    entry.value.first.zoneNombre.toUpperCase(),
+                    style: const TextStyle(
+                      color:       AppColors.textSecondary,
+                      fontSize:    11,
+                      fontWeight:  FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
               ),
-              ...entry.value.map((valve) => _ValveCard(valve: valve)),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
+            ),
+            ...entry.value.map((valve) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ValveCard(valve: valve),
+            )),
+            const SizedBox(height: 8),
+          ],
+        )),
       ],
     );
   }
 }
 
+// ── Botón de zona ─────────────────────────────────────────────────────────────
 class _ZoneButton extends StatelessWidget {
   final String nombre;
-  final bool isOpen;
-  final bool isOnline;
+  final bool   isOpen;
+  final bool   isOnline;
   final VoidCallback onTap;
 
   const _ZoneButton({
@@ -162,157 +171,222 @@ class _ZoneButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: isOnline ? onTap : null,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: !isOnline
-            ? const Color(0xFF374151)
-            : isOpen
-            ? const Color(0xFF9b1c1c)
-            : const Color(0xFF2d6a4f),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            !isOnline
-                ? Icons.wifi_off_rounded
-                : isOpen
-                ? Icons.stop_circle_outlined
-                : Icons.play_circle_outline,
-            color: Colors.white,
+    final color = !isOnline
+        ? AppColors.textMuted
+        : isOpen ? AppColors.danger : AppColors.primary;
+
+    return GestureDetector(
+      onTap: isOnline ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isOnline ? color.withOpacity(0.5) : AppColors.border,
+            width: 1.5,
           ),
-          const SizedBox(height: 4),
-          Text(
-            !isOnline
-                ? 'Sin conexión'
-                : isOpen
-                ? 'Cerrar $nombre'
-                : 'Abrir $nombre',
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              !isOnline
+                  ? Icons.wifi_off_rounded
+                  : isOpen
+                  ? Icons.stop_circle_outlined
+                  : Icons.play_circle_outline,
+              color: color,
+              size:  18,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                !isOnline
+                    ? 'Sin conexión'
+                    : isOpen ? 'Cerrar $nombre' : 'Abrir $nombre',
+                style: TextStyle(
+                  color:      color,
+                  fontWeight: FontWeight.w600,
+                  fontSize:   13,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ── Card de válvula ───────────────────────────────────────────────────────────
 class _ValveCard extends ConsumerWidget {
   final ValveModel valve;
-
   const _ValveCard({required this.valve});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isOpen = valve.isOpen;
+    final isOpen   = valve.isOpen;
     final isOnline = valve.nodoOnline;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       decoration: BoxDecoration(
-        color: const Color(0xFF1a2f20),
-        borderRadius: BorderRadius.circular(14),
+        color:        AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: !isOnline
-              ? const Color(0xFF7f1d1d)
+              ? AppColors.danger.withOpacity(0.3)
               : isOpen
-              ? const Color(0xFF52b788)
-              : const Color(0xFF2d3a30),
-          width: 1.5,
+              ? AppColors.primary.withOpacity(0.5)
+              : AppColors.border,
+          width: isOpen ? 1.5 : 1,
         ),
+        boxShadow: isOpen
+            ? [BoxShadow(
+          color:      AppColors.primary.withOpacity(0.08),
+          blurRadius: 12,
+          offset:     const Offset(0, 4),
+        )]
+            : null,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           children: [
-            Container(
-              width: 48,
+            // Icono con estado
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width:  48,
               height: 48,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
                 color: isOpen
-                    ? const Color(0xFF52b788).withOpacity(0.2)
-                    : const Color(0xFF2d3a30),
+                    ? AppColors.primary.withOpacity(0.15)
+                    : AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                isOpen ? Icons.water_drop : Icons.water_drop_outlined,
-                color: isOpen
-                    ? const Color(0xFF52b788)
-                    : const Color(0xFF4a5a50),
-              ),
-            ),
-            // Indicador de estado del nodo
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isOnline
-                      ? const Color(0xFF22c55e)
-                      : const Color(0xFFef4444),
-                  border: Border.all(
-                    color: const Color(0xFF1a2f20),
-                    width: 1.5,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      isOpen
+                          ? Icons.water_drop_rounded
+                          : Icons.water_drop_outlined,
+                      color: isOpen ? AppColors.primary : AppColors.textMuted,
+                      size:  24,
+                    ),
                   ),
-                ),
+                  // Indicador nodo
+                  Positioned(
+                    bottom: 4,
+                    right:  4,
+                    child: Container(
+                      width:  8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isOnline
+                            ? AppColors.success
+                            : AppColors.danger,
+                        border: Border.all(
+                          color: AppColors.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        title: Text(
-          valve.nombre,
-          style: const TextStyle(
-            color: Color(0xFFd8f3dc),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Canal ${valve.canalRele} · ${valve.nodeId}',
-              style: const TextStyle(color: Color(0xFF52b788), fontSize: 12),
-            ),
-            if (!isOnline)
-              const Text(
-                'Nodo sin conexión',
-                style: TextStyle(
-                  color: Color(0xFFf87171),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
+            const SizedBox(width: 14),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    valve.nombre,
+                    style: const TextStyle(
+                      color:      AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize:   14,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Text(
+                        'Canal ${valve.canalRele}',
+                        style: const TextStyle(
+                          color:   AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Text(
+                        ' · ',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isOpen
+                              ? AppColors.primary.withOpacity(0.12)
+                              : AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isOpen ? 'ABIERTA' : 'CERRADA',
+                          style: TextStyle(
+                            color:      isOpen
+                                ? AppColors.primary
+                                : AppColors.textMuted,
+                            fontSize:   10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isOnline) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Nodo sin conexión',
+                      style: TextStyle(
+                        color:   AppColors.danger,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-          ],
-        ),
-        trailing: Switch(
-          value: isOpen,
-          onChanged: isOnline
-              ? (_) async {
-                  try {
-                    await ref
-                        .read(valveProvider.notifier)
-                        .sendCommand(
-                          valve.valveId,
-                          isOpen ? 'cerrar' : 'abrir',
-                        );
-                  } catch (e) {
-                    if (context.mounted) {
-                      showErrorSnackbar(
-                        context,
-                        e.toString().replaceAll('Exception: ', ''),
-                      );
-                    }
+            ),
+
+            // Toggle
+            Switch(
+              value:     isOpen,
+              onChanged: isOnline
+                  ? (_) async {
+                try {
+                  await ref.read(valveProvider.notifier).sendCommand(
+                    valve.valveId,
+                    isOpen ? 'cerrar' : 'abrir',
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    showErrorSnackbar(context,
+                        e.toString().replaceAll('Exception: ', ''));
                   }
                 }
-              : null,
-          activeColor: const Color(0xFF52b788),
-          inactiveThumbColor: const Color(0xFF4a5a50),
-          inactiveTrackColor: const Color(0xFF2d3a30),
+              }
+                  : null,
+            ),
+          ],
         ),
       ),
     );

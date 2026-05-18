@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../../config/theme/app_colors.dart';
+import '../../config/theme/app_theme.dart';
 import '../common/app_card.dart';
 import '../common/status_chip.dart';
 

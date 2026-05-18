@@ -14,10 +14,10 @@ class RiegoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'Riego IoT',
+      title:                      'Riego Automatizado',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
+      theme:                      AppTheme.dark,
+      routerConfig:               router,
     );
   }
 }

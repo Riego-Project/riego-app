@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../config/theme/app_colors.dart';
+import '../../config/theme/app_theme.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;

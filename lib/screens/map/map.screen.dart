@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import '../../config/theme/app_theme.dart';
 import '../../models/valve.model.dart';
 import '../../providers/valve.provider.dart';
 import '../../widgets/common/error_snackbar.dart';
@@ -16,77 +17,92 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
   String? _selectedValveId;
+  LatLng? _center;
+
+  void _centerMap() {
+    if (_center != null) {
+      _mapController.move(_center!, 19);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final valvesState = ref.watch(valveProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f1a14),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1a2f20),
-        title: const Text(
-          'Mapa de Válvulas',
-          style: TextStyle(color: Color(0xFF95d5b2)),
-        ),
-        iconTheme: const IconThemeData(color: Color(0xFF52b788)),
-      ),
+      appBar: AppBar(title: const Text('Mapa de Válvulas')),
       body: valvesState.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF52b788)),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+          child: Text(
+            'Error: $e',
+            style: const TextStyle(color: AppColors.danger),
+          ),
         ),
         data: (valves) {
           final withLocation = valves.where((v) => v.hasLocation).toList();
 
           if (withLocation.isEmpty) {
             return const Center(
-              child: Text(
-                'No hay válvulas con ubicación configurada',
-                style: TextStyle(color: Color(0xFF52b788)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.location_off_rounded,
+                    color: AppColors.textMuted,
+                    size: 48,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'No hay válvulas con ubicación',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
               ),
             );
           }
 
-          // Válvula seleccionada siempre desde el provider — se actualiza en tiempo real
+          _center = LatLng(
+            withLocation.map((v) => v.latitud!).reduce((a, b) => a + b) /
+                withLocation.length,
+            withLocation.map((v) => v.longitud!).reduce((a, b) => a + b) /
+                withLocation.length,
+          );
+
           final selectedValve = _selectedValveId != null
               ? valves.where((v) => v.valveId == _selectedValveId).firstOrNull
               : null;
 
-          final center = LatLng(
-            withLocation.map((v) => v.latitud!).reduce((a, b) => a + b) / withLocation.length,
-            withLocation.map((v) => v.longitud!).reduce((a, b) => a + b) / withLocation.length,
-          );
-
           return Stack(
             children: [
+              // ── Mapa ───────────────────────────────────────────────────
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: center,
-                  initialZoom:   19,
-                  maxZoom:       22,
+                  initialCenter: _center!,
+                  initialZoom: 19,
+                  maxZoom: 22,
                   onTap: (_, __) => setState(() => _selectedValveId = null),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-                    subdomains:  const ['0', '1', '2', '3'],
+                    urlTemplate:
+                        'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+                    subdomains: const ['0', '1', '2', '3'],
                     userAgentPackageName: 'pe.riego.app',
                   ),
                   MarkerLayer(
                     markers: withLocation.map((valve) {
                       final isSelected = valve.valveId == _selectedValveId;
                       return Marker(
-                        point:  LatLng(valve.latitud!, valve.longitud!),
-                        width:  isSelected ? 56 : 44,
-                        height: isSelected ? 56 : 44,
+                        point: LatLng(valve.latitud!, valve.longitud!),
+                        width: isSelected ? 60 : 46,
+                        height: isSelected ? 60 : 46,
                         child: GestureDetector(
-                          onTap: () => setState(() => _selectedValveId = valve.valveId),
+                          onTap: () =>
+                              setState(() => _selectedValveId = valve.valveId),
                           child: _ValveMarker(
-                            valve:      valve,
+                            valve: valve,
                             isSelected: isSelected,
                           ),
                         ),
@@ -96,25 +112,37 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ],
               ),
 
-              // Leyenda
+              // ── Leyenda ────────────────────────────────────────────────
+              Positioned(top: 12, right: 12, child: _Legend()),
+
+              // ── Botón centrar ──────────────────────────────────────────
               Positioned(
-                top:   12,
-                right: 12,
-                child: _Legend(),
+                bottom: selectedValve != null ? 200 : 24,
+                right: 16,
+                child: Column(
+                  children: [
+                    _MapButton(
+                      icon: Icons.my_location_rounded,
+                      tooltip: 'Centrar válvulas',
+                      onTap: _centerMap,
+                    ),
+                  ],
+                ),
               ),
 
-              // Panel de control
+              // ── Panel de válvula seleccionada ──────────────────────────
               if (selectedValve != null)
                 Positioned(
                   bottom: 0,
-                  left:   0,
-                  right:  0,
+                  left: 0,
+                  right: 0,
                   child: _ValvePanel(
-                    valve:     selectedValve,
-                    onClose:   () => setState(() => _selectedValveId = null),
+                    valve: selectedValve,
+                    onClose: () => setState(() => _selectedValveId = null),
                     onCommand: (accion) async {
                       try {
-                        await ref.read(valveProvider.notifier)
+                        await ref
+                            .read(valveProvider.notifier)
                             .sendCommand(selectedValve.valveId, accion);
                       } catch (e) {
                         if (context.mounted) {
@@ -135,45 +163,82 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 }
 
-// ── Marcador ──────────────────────────────────────────────────────────────────
+// ── Botón flotante del mapa ───────────────────────────────────────────────────
+class _MapButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _MapButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Marcador de válvula ───────────────────────────────────────────────────────
 class _ValveMarker extends StatelessWidget {
   final ValveModel valve;
-  final bool       isSelected;
+  final bool isSelected;
+
   const _ValveMarker({required this.valve, required this.isSelected});
 
   @override
   Widget build(BuildContext context) {
     final isOpen = valve.isOpen;
-
-    // Colores distintivos: azul agua para abierta, gris oscuro para cerrada
-    final bgColor     = isOpen ? const Color(0xFF0ea5e9) : const Color(0xFF374151);
-    final borderColor = isOpen ? const Color(0xFF7dd3fc) : const Color(0xFF6b7280);
-    final iconColor   = isOpen ? Colors.white : const Color(0xFF9ca3af);
+    final bgColor = isOpen ? AppColors.primary : const Color(0xFF334155);
+    final glowColor = isOpen
+        ? AppColors.primary.withOpacity(0.4)
+        : Colors.black.withOpacity(0.3);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color:  bgColor,
-        shape:  BoxShape.circle,
+        color: bgColor,
+        shape: BoxShape.circle,
         border: Border.all(
-          color: isSelected ? Colors.white : borderColor,
+          color: isSelected ? Colors.white : bgColor.withOpacity(0.6),
           width: isSelected ? 3 : 2,
         ),
         boxShadow: [
           BoxShadow(
-            color:      isOpen
-                ? const Color(0xFF0ea5e9).withOpacity(0.5)
-                : Colors.black.withOpacity(0.4),
-            blurRadius: isSelected ? 12 : 6,
-            spreadRadius: isSelected ? 2 : 0,
-            offset:     const Offset(0, 2),
+            color: glowColor,
+            blurRadius: isSelected ? 16 : 8,
+            spreadRadius: isSelected ? 3 : 0,
           ),
         ],
       ),
       child: Icon(
-        isOpen ? Icons.water_drop : Icons.water_drop_outlined,
-        color: iconColor,
-        size:  isSelected ? 28 : 22,
+        isOpen ? Icons.water_drop_rounded : Icons.water_drop_outlined,
+        color: Colors.white,
+        size: isSelected ? 28 : 22,
       ),
     );
   }
@@ -184,18 +249,19 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color:        Colors.black.withOpacity(0.6),
+        color: AppColors.surface.withOpacity(0.9),
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _LegendItem(color: const Color(0xFF0ea5e9), label: 'Abierta'),
+          _LegendItem(color: AppColors.primary, label: 'Abierta'),
           const SizedBox(height: 4),
-          _LegendItem(color: const Color(0xFF374151), label: 'Cerrada'),
+          _LegendItem(color: const Color(0xFF334155), label: 'Cerrada'),
         ],
       ),
     );
@@ -203,8 +269,9 @@ class _Legend extends StatelessWidget {
 }
 
 class _LegendItem extends StatelessWidget {
-  final Color  color;
+  final Color color;
   final String label;
+
   const _LegendItem({required this.color, required this.label});
 
   @override
@@ -213,22 +280,26 @@ class _LegendItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width:  12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 11),
+        ),
       ],
     );
   }
 }
 
-// ── Panel de control ──────────────────────────────────────────────────────────
+// ── Panel de control inferior ─────────────────────────────────────────────────
 class _ValvePanel extends StatelessWidget {
-  final ValveModel       valve;
-  final VoidCallback     onClose;
+  final ValveModel valve;
+  final VoidCallback onClose;
   final Function(String) onCommand;
+
   const _ValvePanel({
     required this.valve,
     required this.onClose,
@@ -238,23 +309,22 @@ class _ValvePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOpen = valve.isOpen;
+    final isOnline = valve.nodoOnline;
 
     return Container(
-      margin:  const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        const Color(0xFF1a2f20),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isOpen
-              ? const Color(0xFF0ea5e9)
-              : const Color(0xFF2d3a30),
+          color: isOpen ? AppColors.primary.withOpacity(0.4) : AppColors.border,
         ),
         boxShadow: [
           BoxShadow(
-            color:      Colors.black.withOpacity(0.5),
-            blurRadius: 16,
-            offset:     const Offset(0, -4),
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -264,20 +334,18 @@ class _ValvePanel extends StatelessWidget {
           Row(
             children: [
               Container(
-                width:  40,
-                height: 40,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color:  isOpen
-                      ? const Color(0xFF0ea5e9).withOpacity(0.2)
-                      : const Color(0xFF2d3a30),
-                  shape: BoxShape.circle,
+                  color: isOpen
+                      ? AppColors.primary.withOpacity(0.15)
+                      : AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  isOpen ? Icons.water_drop : Icons.water_drop_outlined,
-                  color: isOpen
-                      ? const Color(0xFF0ea5e9)
-                      : const Color(0xFF6b7280),
-                  size: 20,
+                  isOpen ? Icons.water_drop_rounded : Icons.water_drop_outlined,
+                  color: isOpen ? AppColors.primary : AppColors.textMuted,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 12),
@@ -288,83 +356,80 @@ class _ValvePanel extends StatelessWidget {
                     Text(
                       valve.nombre,
                       style: const TextStyle(
-                        color:      Color(0xFFd8f3dc),
-                        fontWeight: FontWeight.bold,
-                        fontSize:   15,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
                       ),
                     ),
                     Text(
                       '${valve.zoneNombre} · Canal ${valve.canalRele}',
                       style: const TextStyle(
-                        color:   Color(0xFF52b788),
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              // Badge de estado
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color:        isOpen
-                      ? const Color(0xFF0ea5e9).withOpacity(0.15)
-                      : const Color(0xFF374151),
-                  borderRadius: BorderRadius.circular(20),
+                  color: isOpen
+                      ? AppColors.primary.withOpacity(0.12)
+                      : AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isOpen
-                        ? const Color(0xFF0ea5e9)
-                        : const Color(0xFF6b7280),
-                    width: 1,
+                    color: isOpen ? AppColors.primary : AppColors.border,
                   ),
                 ),
                 child: Text(
                   isOpen ? 'ABIERTA' : 'CERRADA',
                   style: TextStyle(
-                    color:      isOpen
-                        ? const Color(0xFF0ea5e9)
-                        : const Color(0xFF9ca3af),
-                    fontSize:   10,
-                    fontWeight: FontWeight.bold,
+                    color: isOpen ? AppColors.primary : AppColors.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon:      const Icon(Icons.close, color: Color(0xFF52b788), size: 18),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textSecondary,
+                  size: 18,
+                ),
                 onPressed: onClose,
-                padding:   EdgeInsets.zero,
+                padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
             ],
           ),
           const SizedBox(height: 14),
           SizedBox(
-            width:  double.infinity,
+            width: double.infinity,
             height: 46,
             child: ElevatedButton.icon(
-              onPressed: () => onCommand(isOpen ? 'cerrar' : 'abrir'),
+              onPressed: isOnline
+                  ? () => onCommand(isOpen ? 'cerrar' : 'abrir')
+                  : null,
               icon: Icon(
-                isOpen
-                    ? Icons.stop_circle_outlined
-                    : Icons.play_circle_outline,
-                color: Colors.white,
+                isOpen ? Icons.stop_circle_outlined : Icons.play_circle_outline,
               ),
               label: Text(
-                isOpen ? 'Cerrar válvula' : 'Abrir válvula',
-                style: const TextStyle(
-                  color:      Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                !isOnline
+                    ? 'Nodo sin conexión'
+                    : isOpen
+                    ? 'Cerrar válvula'
+                    : 'Abrir válvula',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isOpen
-                    ? const Color(0xFFdc2626)
-                    : const Color(0xFF0ea5e9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                backgroundColor: !isOnline
+                    ? AppColors.border
+                    : isOpen
+                    ? AppColors.danger
+                    : AppColors.primary,
               ),
             ),
           ),
