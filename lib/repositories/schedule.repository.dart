@@ -39,4 +39,12 @@ class ScheduleRepository {
       throw Exception(handleError(e).mensaje);
     }
   }
+
+  Future<void> update(int id, Map<String, dynamic> data) async {
+    try {
+      await _api.put('/horarios/$id', data);
+    } catch (e) {
+      throw Exception(handleError(e).mensaje);
+    }
+  }
 }

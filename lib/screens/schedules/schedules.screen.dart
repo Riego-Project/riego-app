@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../config/theme/app_theme.dart';
 import '../../models/schedule.model.dart';
 import '../../providers/schedule.provider.dart';
 import '../../widgets/common/error_snackbar.dart';
@@ -70,18 +71,12 @@ class SchedulesScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   const Text(
                     'No hay horarios programados',
-                    style: TextStyle(
-                      color: Color(0xFF52b788),
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Color(0xFF52b788), fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Toca + para crear uno',
-                    style: TextStyle(
-                      color: Color(0xFF2d6a4f),
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Color(0xFF2d6a4f), fontSize: 13),
                   ),
                 ],
               ),
@@ -102,6 +97,7 @@ class SchedulesScreen extends ConsumerWidget {
 
 class _ScheduleCard extends ConsumerWidget {
   final ScheduleModel schedule;
+
   const _ScheduleCard({required this.schedule});
 
   @override
@@ -110,7 +106,7 @@ class _ScheduleCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color:        const Color(0xFF1a2f20),
+        color: const Color(0xFF1a2f20),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: schedule.activo
@@ -123,18 +119,16 @@ class _ScheduleCard extends ConsumerWidget {
           ListTile(
             contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
             leading: Container(
-              width:  44,
+              width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color:        schedule.activo
+                color: schedule.activo
                     ? const Color(0xFF2d6a4f)
                     : const Color(0xFF1e2e24),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                isZona
-                    ? Icons.water_rounded
-                    : Icons.water_drop_rounded,
+                isZona ? Icons.water_rounded : Icons.water_drop_rounded,
                 color: schedule.activo
                     ? const Color(0xFF95d5b2)
                     : const Color(0xFF3d5a47),
@@ -144,11 +138,11 @@ class _ScheduleCard extends ConsumerWidget {
             title: Text(
               schedule.nombre,
               style: TextStyle(
-                color:      schedule.activo
+                color: schedule.activo
                     ? const Color(0xFFd8f3dc)
                     : const Color(0xFF4a5a50),
                 fontWeight: FontWeight.w600,
-                fontSize:   14,
+                fontSize: 14,
               ),
             ),
             subtitle: Padding(
@@ -160,15 +154,17 @@ class _ScheduleCard extends ConsumerWidget {
                   Row(
                     children: [
                       Icon(
-                        isZona ? Icons.layers_rounded : Icons.water_drop_outlined,
-                        size:  12,
+                        isZona
+                            ? Icons.layers_rounded
+                            : Icons.water_drop_outlined,
+                        size: 12,
                         color: const Color(0xFF52b788),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         schedule.objetivoNombre,
                         style: const TextStyle(
-                          color:   Color(0xFF52b788),
+                          color: Color(0xFF52b788),
                           fontSize: 12,
                         ),
                       ),
@@ -180,14 +176,14 @@ class _ScheduleCard extends ConsumerWidget {
                     children: [
                       const Icon(
                         Icons.access_time_rounded,
-                        size:  12,
+                        size: 12,
                         color: Color(0xFF52b788),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${schedule.hora} · ${schedule.diasTexto}',
                         style: const TextStyle(
-                          color:   Color(0xFF52b788),
+                          color: Color(0xFF52b788),
                           fontSize: 12,
                         ),
                       ),
@@ -199,14 +195,14 @@ class _ScheduleCard extends ConsumerWidget {
                     children: [
                       const Icon(
                         Icons.timer_outlined,
-                        size:  12,
+                        size: 12,
                         color: Color(0xFF52b788),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         schedule.duracionTexto,
                         style: const TextStyle(
-                          color:   Color(0xFF52b788),
+                          color: Color(0xFF52b788),
                           fontSize: 12,
                         ),
                       ),
@@ -216,16 +212,21 @@ class _ScheduleCard extends ConsumerWidget {
               ),
             ),
             trailing: Switch(
-              value:       schedule.activo,
+              value: schedule.activo,
               activeColor: const Color(0xFF52b788),
               inactiveThumbColor: const Color(0xFF4a5a50),
               inactiveTrackColor: const Color(0xFF2d3a30),
               onChanged: (val) async {
                 try {
-                  await ref.read(scheduleProvider.notifier).toggle(schedule.id, val);
+                  await ref
+                      .read(scheduleProvider.notifier)
+                      .toggle(schedule.id, val);
                 } catch (e) {
                   if (context.mounted) {
-                    showErrorSnackbar(context, e.toString().replaceAll('Exception: ', ''));
+                    showErrorSnackbar(
+                      context,
+                      e.toString().replaceAll('Exception: ', ''),
+                    );
                   }
                 }
               },
@@ -241,15 +242,29 @@ class _ScheduleCard extends ConsumerWidget {
                   onPressed: () => _confirmDelete(context, ref),
                   icon: const Icon(
                     Icons.delete_outline,
-                    size:  16,
+                    size: 16,
                     color: Color(0xFF9b1c1c),
                   ),
                   label: const Text(
                     'Eliminar',
-                    style: TextStyle(
-                      color:   Color(0xFF9b1c1c),
-                      fontSize: 12,
+                    style: TextStyle(color: Color(0xFF9b1c1c), fontSize: 12),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ScheduleFormScreen(schedule: schedule),
                     ),
+                  ).then((_) => ref.read(scheduleProvider.notifier).refresh()),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  label: const Text(
+                    'Editar',
+                    style: TextStyle(color: AppColors.primary, fontSize: 12),
                   ),
                 ),
               ],

@@ -1,35 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../config/theme/app_theme.dart';
+import '../../models/schedule.model.dart';
 import '../../providers/schedule.provider.dart';
 import '../../providers/valve.provider.dart';
 import '../../widgets/common/error_snackbar.dart';
 
 class ScheduleFormScreen extends ConsumerStatefulWidget {
-  const ScheduleFormScreen({super.key});
+  final ScheduleModel? schedule; // null = crear, no-null = editar
+
+  const ScheduleFormScreen({super.key, this.schedule});
 
   @override
   ConsumerState<ScheduleFormScreen> createState() => _ScheduleFormScreenState();
 }
 
 class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
-  final _nombreCtrl = TextEditingController();
-
-  // Tipo
-  String _tipo = 'ZONA';
-  int? _zonaId;
-  int? _valveDbId;
-
-  // Modo
-  String _modo = 'SEMANAL';
-  List<int> _dias = [];
+  late final TextEditingController _nombreCtrl;
+  late String _tipo;
+  late int? _zonaId;
+  late int? _valveDbId;
+  late String _modo;
+  late List<int> _dias;
   DateTime? _fechaExacta;
-
-  // Horario
-  TimeOfDay _horaApertura = const TimeOfDay(hour: 6, minute: 0);
-  bool _cierreAuto = true;
+  late TimeOfDay _horaApertura;
+  late bool _cierreAuto;
   TimeOfDay? _horaCierre;
-
   bool _loading = false;
+
+  bool get _esEdicion => widget.schedule != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.schedule;
+    _nombreCtrl = TextEditingController(text: s?.nombre ?? '');
+    _tipo = s?.tipo ?? 'ZONA';
+    _zonaId = s?.zonaId;
+    _valveDbId = null; // se resuelve con valveId string → id int en build
+    _modo = s?.modo ?? 'SEMANAL';
+    _dias = List<int>.from(s?.dias ?? []);
+    _fechaExacta = s?.fechaExacta;
+    _cierreAuto = s?.cierreAuto ?? true;
+
+    if (s != null) {
+      final parts = s.hora.split(':');
+      _horaApertura = TimeOfDay(
+        hour: int.parse(parts[0]),
+        minute: int.parse(parts[1]),
+      );
+      if (s.cierreAuto && s.duracionS != null) {
+        final totalMin =
+            _horaApertura.hour * 60 + _horaApertura.minute + s.duracionS! ~/ 60;
+        _horaCierre = TimeOfDay(
+          hour: totalMin ~/ 60 % 24,
+          minute: totalMin % 60,
+        );
+      }
+    } else {
+      _horaApertura = const TimeOfDay(hour: 6, minute: 0);
+    }
+  }
 
   @override
   void dispose() {
@@ -39,9 +70,9 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
 
   int? get _duracionS {
     if (!_cierreAuto || _horaCierre == null) return null;
-    final aperturaMin = _horaApertura.hour * 60 + _horaApertura.minute;
-    final cierreMin = _horaCierre!.hour * 60 + _horaCierre!.minute;
-    final diff = cierreMin - aperturaMin;
+    final aMin = _horaApertura.hour * 60 + _horaApertura.minute;
+    final cMin = _horaCierre!.hour * 60 + _horaCierre!.minute;
+    final diff = cMin - aMin;
     return diff > 0 ? diff * 60 : null;
   }
 
@@ -54,66 +85,57 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
       initialTime: esApertura ? _horaApertura : (_horaCierre ?? _horaApertura),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: Color(0xFF52b788)),
+          colorScheme: const ColorScheme.dark(primary: AppColors.primary),
         ),
         child: child!,
       ),
     );
-    if (picked != null) {
+    if (picked != null)
       setState(() {
         if (esApertura)
           _horaApertura = picked;
         else
           _horaCierre = picked;
       });
-    }
   }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
+      initialDate:
+          _fechaExacta?.toLocal() ??
+          DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: Color(0xFF52b788)),
+          colorScheme: const ColorScheme.dark(primary: AppColors.primary),
         ),
         child: child!,
       ),
     );
-    if (picked == null) return;
-    if (!context.mounted) return;
-
+    if (picked == null || !context.mounted) return;
     final hora = await showTimePicker(
       context: context,
       initialTime: _horaApertura,
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: Color(0xFF52b788)),
+          colorScheme: const ColorScheme.dark(primary: AppColors.primary),
         ),
         child: child!,
       ),
     );
-
-    if (hora != null) {
+    if (hora != null)
       setState(() {
-        // 1. Creamos la fecha en el tiempo LOCAL del dispositivo
-        final localDateTime = DateTime(
+        _fechaExacta = DateTime(
           picked.year,
           picked.month,
           picked.day,
           hora.hour,
           hora.minute,
-        );
-
-        // 2. Dejamos que Flutter maneje la conversión exacta a UTC
-        // sin importar si el usuario está en Lima, Madrid o Tokyo.
-        _fechaExacta = localDateTime.toUtc();
-
+        ).toUtc();
         _horaApertura = hora;
       });
-    }
   }
 
   Future<void> _guardar() async {
@@ -138,36 +160,39 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
       return;
     }
     if (_cierreAuto && _duracionS == null) {
-      showErrorSnackbar(
-        context,
-        'La hora de cierre debe ser posterior a la apertura',
-      );
+      showErrorSnackbar(context, 'La hora de cierre debe ser posterior');
       return;
     }
 
     setState(() => _loading = true);
 
-    try {
-      await ref.read(scheduleProvider.notifier).create({
-        'nombre': _nombreCtrl.text.trim(),
-        'tipo': _tipo,
-        'zoneId': _tipo == 'ZONA' ? _zonaId : null,
-        'valveId': _tipo == 'VALVULA' ? _valveDbId : null,
-        'modo': _modo,
-        'dias': _modo == 'SEMANAL' ? _dias : [],
-        'fechaExacta': _modo == 'FECHA_EXACTA'
-            ? _fechaExacta!.toIso8601String()
-            : null,
-        'hora': _formatTime(_horaApertura),
-        'cierreAuto': _cierreAuto,
-        'duracionS': _duracionS,
-      });
+    final data = {
+      'nombre': _nombreCtrl.text.trim(),
+      'tipo': _tipo,
+      'zoneId': _tipo == 'ZONA' ? _zonaId : null,
+      'valveId': _tipo == 'VALVULA' ? _valveDbId : null,
+      'modo': _modo,
+      'dias': _modo == 'SEMANAL' ? _dias : [],
+      'fechaExacta': _modo == 'FECHA_EXACTA'
+          ? _fechaExacta!.toIso8601String()
+          : null,
+      'hora': _formatTime(_horaApertura),
+      'cierreAuto': _cierreAuto,
+      'duracionS': _duracionS,
+    };
 
+    try {
+      if (_esEdicion) {
+        await ref
+            .read(scheduleProvider.notifier)
+            .updateSchedule(widget.schedule!.id, data);
+      } else {
+        await ref.read(scheduleProvider.notifier).create(data);
+      }
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         showErrorSnackbar(context, e.toString().replaceAll('Exception: ', ''));
-      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -178,21 +203,14 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     final valvesState = ref.watch(valveProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0f1a14),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a2f20),
-        title: const Text(
-          'Nuevo Horario',
-          style: TextStyle(color: Color(0xFF95d5b2)),
-        ),
-        iconTheme: const IconThemeData(color: Color(0xFF52b788)),
+        title: Text(_esEdicion ? 'Editar Horario' : 'Nuevo Horario'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Nombre ────────────────────────────────────────────────────
             _SectionTitle('Nombre del horario'),
             const SizedBox(height: 8),
             _Field(
@@ -201,7 +219,6 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             ),
             const SizedBox(height: 20),
 
-            // ── Tipo ──────────────────────────────────────────────────────
             _SectionTitle('Programar por'),
             const SizedBox(height: 8),
             _SegmentedRow(
@@ -216,17 +233,25 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Selector zona o válvula
             valvesState.when(
-              loading: () =>
-                  const CircularProgressIndicator(color: Color(0xFF52b788)),
-              error: (e, _) =>
-                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              loading: () => const CircularProgressIndicator(),
+              error: (e, _) => Text(
+                'Error: $e',
+                style: const TextStyle(color: AppColors.danger),
+              ),
               data: (valves) {
                 if (_tipo == 'ZONA') {
-                  // Zonas únicas
                   final zonas = <int, String>{};
                   for (final v in valves) zonas[v.zoneId] = v.zoneNombre;
+
+                  // Pre-seleccionar zona si es edición
+                  if (_esEdicion &&
+                      _zonaId == null &&
+                      widget.schedule?.zonaId != null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      setState(() => _zonaId = widget.schedule!.zonaId);
+                    });
+                  }
 
                   return _Dropdown<int>(
                     hint: 'Seleccionar zona',
@@ -242,6 +267,20 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                     onChanged: (v) => setState(() => _zonaId = v),
                   );
                 } else {
+                  // Pre-seleccionar válvula si es edición
+                  if (_esEdicion &&
+                      _valveDbId == null &&
+                      widget.schedule?.valveId != null) {
+                    final match = valves
+                        .where((v) => v.valveId == widget.schedule!.valveId)
+                        .firstOrNull;
+                    if (match != null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        setState(() => _valveDbId = match.id);
+                      });
+                    }
+                  }
+
                   return _Dropdown<int>(
                     hint: 'Seleccionar válvula',
                     value: _valveDbId,
@@ -260,7 +299,6 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             ),
             const SizedBox(height: 20),
 
-            // ── Modo ──────────────────────────────────────────────────────
             _SectionTitle('Tipo de programación'),
             const SizedBox(height: 8),
             _SegmentedRow(
@@ -276,7 +314,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               const SizedBox(height: 8),
               _DaySelector(
                 selected: _dias,
-                onChanged: (dias) => setState(() => _dias = dias),
+                onChanged: (d) => setState(() => _dias = d),
               ),
             ] else ...[
               _SectionTitle('Fecha y hora'),
@@ -284,8 +322,9 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               _TimeButton(
                 label: _fechaExacta != null
                     ? () {
-                        final local = _fechaExacta!.toLocal();
-                        return '${local.day}/${local.month}/${local.year} ${_formatTime(TimeOfDay.fromDateTime(local))}';
+                        final l = _fechaExacta!.toLocal();
+                        return '${l.day}/${l.month}/${l.year} '
+                            '${_formatTime(TimeOfDay.fromDateTime(l))}';
                       }()
                     : 'Seleccionar fecha y hora',
                 icon: Icons.calendar_today_rounded,
@@ -294,7 +333,6 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             ],
             const SizedBox(height: 20),
 
-            // ── Hora de apertura ──────────────────────────────────────────
             if (_modo == 'SEMANAL') ...[
               _SectionTitle('Hora de apertura'),
               const SizedBox(height: 8),
@@ -306,7 +344,6 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
               const SizedBox(height: 20),
             ],
 
-            // ── Cierre ────────────────────────────────────────────────────
             _SectionTitle('Cierre'),
             const SizedBox(height: 8),
             _SegmentedRow(
@@ -331,7 +368,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                   child: Text(
                     'Duración: ${_duracionS! ~/ 60} minutos',
                     style: const TextStyle(
-                      color: Color(0xFF52b788),
+                      color: AppColors.primary,
                       fontSize: 12,
                     ),
                     textAlign: TextAlign.center,
@@ -340,24 +377,23 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
             ],
             const SizedBox(height: 32),
 
-            // ── Guardar ───────────────────────────────────────────────────
             SizedBox(
               height: 50,
               child: ElevatedButton(
                 onPressed: _loading ? null : _guardar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2d6a4f),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
                 child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Guardar horario',
-                        style: TextStyle(
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        _esEdicion ? 'Guardar cambios' : 'Crear horario',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
                           fontSize: 15,
                         ),
                       ),
@@ -370,8 +406,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
   }
 }
 
-// ── Widgets auxiliares ────────────────────────────────────────────────────────
-
+// ── Widgets auxiliares (mismos que antes) ─────────────────────────────────────
 class _SectionTitle extends StatelessWidget {
   final String text;
 
@@ -381,7 +416,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: const TextStyle(
-      color: Color(0xFF95d5b2),
+      color: AppColors.textSecondary,
       fontSize: 13,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.5,
@@ -398,27 +433,13 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextField(
     controller: controller,
-    style: const TextStyle(color: Colors.white),
-    decoration: InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF3d5a47)),
-      filled: true,
-      fillColor: const Color(0xFF1a2f20),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF52b788)),
-      ),
-    ),
+    style: const TextStyle(color: AppColors.textPrimary),
+    decoration: InputDecoration(hintText: hint),
   );
 }
 
 class _SegmentedRow extends StatelessWidget {
-  final List<String> options;
-  final List<String> labels;
+  final List<String> options, labels;
   final String value;
   final Function(String) onChanged;
 
@@ -430,44 +451,38 @@ class _SegmentedRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(options.length, (i) {
-        final isSelected = options[i] == value;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onChanged(options[i]),
-            child: Container(
-              margin: EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF2d6a4f)
-                    : const Color(0xFF1a2f20),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF52b788)
-                      : const Color(0xFF2d3a30),
-                ),
+  Widget build(BuildContext context) => Row(
+    children: List.generate(options.length, (i) {
+      final sel = options[i] == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => onChanged(options[i]),
+          child: Container(
+            margin: EdgeInsets.only(right: i < options.length - 1 ? 8 : 0),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: sel
+                  ? AppColors.primary.withOpacity(0.15)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: sel ? AppColors.primary : AppColors.border,
               ),
-              alignment: Alignment.center,
-              child: Text(
-                labels[i],
-                style: TextStyle(
-                  color: isSelected
-                      ? const Color(0xFF95d5b2)
-                      : const Color(0xFF4a5a50),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              labels[i],
+              style: TextStyle(
+                color: sel ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
           ),
-        );
-      }),
-    );
-  }
+        ),
+      );
+    }),
+  );
 }
 
 class _DaySelector extends StatelessWidget {
@@ -480,41 +495,33 @@ class _DaySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     const dias = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
     const nums = [1, 2, 3, 4, 5, 6, 7];
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
-        final isSelected = selected.contains(nums[i]);
+        final sel = selected.contains(nums[i]);
         return GestureDetector(
           onTap: () {
-            final updated = List<int>.from(selected);
-            if (isSelected)
-              updated.remove(nums[i]);
-            else
-              updated.add(nums[i]);
-            onChanged(updated..sort());
+            final u = List<int>.from(selected);
+            sel ? u.remove(nums[i]) : u.add(nums[i]);
+            onChanged(u..sort());
           },
           child: Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isSelected
-                  ? const Color(0xFF2d6a4f)
-                  : const Color(0xFF1a2f20),
+              color: sel
+                  ? AppColors.primary.withOpacity(0.15)
+                  : AppColors.surface,
               border: Border.all(
-                color: isSelected
-                    ? const Color(0xFF52b788)
-                    : const Color(0xFF2d3a30),
+                color: sel ? AppColors.primary : AppColors.border,
               ),
             ),
             alignment: Alignment.center,
             child: Text(
               dias[i],
               style: TextStyle(
-                color: isSelected
-                    ? const Color(0xFF95d5b2)
-                    : const Color(0xFF4a5a50),
+                color: sel ? AppColors.primary : AppColors.textSecondary,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -543,22 +550,22 @@ class _TimeButton extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1a2f20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2d3a30)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF52b788), size: 20),
+          Icon(icon, color: AppColors.primary, size: 20),
           const SizedBox(width: 12),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFd8f3dc), fontSize: 14),
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           ),
           const Spacer(),
           const Icon(
             Icons.chevron_right_rounded,
-            color: Color(0xFF52b788),
+            color: AppColors.textSecondary,
             size: 20,
           ),
         ],
@@ -584,18 +591,18 @@ class _Dropdown<T> extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color: const Color(0xFF1a2f20),
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFF2d3a30)),
+      border: Border.all(color: AppColors.border),
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<T>(
         value: value,
-        hint: Text(hint, style: const TextStyle(color: Color(0xFF3d5a47))),
+        hint: Text(hint, style: const TextStyle(color: AppColors.textMuted)),
         isExpanded: true,
-        dropdownColor: const Color(0xFF1a2f20),
-        style: const TextStyle(color: Color(0xFFd8f3dc)),
-        icon: const Icon(Icons.expand_more, color: Color(0xFF52b788)),
+        dropdownColor: AppColors.surface,
+        style: const TextStyle(color: AppColors.textPrimary),
+        icon: const Icon(Icons.expand_more, color: AppColors.primary),
         items: items,
         onChanged: onChanged,
       ),

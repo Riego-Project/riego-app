@@ -58,6 +58,11 @@ class ScheduleNotifier extends AsyncNotifier<List<ScheduleModel>> {
           () => ref.read(scheduleRepositoryProvider).getAll(),
     );
   }
+
+  Future<void> updateSchedule(int id, Map<String, dynamic> data) async {
+    await ref.read(scheduleRepositoryProvider).update(id, data);
+    await refresh();
+  }
 }
 
 final scheduleProvider = AsyncNotifierProvider<ScheduleNotifier, List<ScheduleModel>>(
