@@ -1,3 +1,4 @@
+import '../models/valve_event.model.dart';
 import '../services/api.service.dart';
 import '../models/valve.model.dart';
 import '../utils/error_handler.dart';
@@ -8,7 +9,7 @@ class ValveRepository {
   Future<List<ValveModel>> getAll() async {
     try {
       final response = await _api.get('/valvulas');
-      final list     = response.data['data'] as List;
+      final list = response.data['data'] as List;
       return list.map((e) => ValveModel.fromJson(e)).toList();
     } catch (e) {
       throw Exception(handleError(e).mensaje);
@@ -26,6 +27,16 @@ class ValveRepository {
   Future<void> sendZoneCommand(int zoneId, String accion) async {
     try {
       await _api.post('/valvulas/zona/$zoneId/comando', {'accion': accion});
+    } catch (e) {
+      throw Exception(handleError(e).mensaje);
+    }
+  }
+
+  Future<List<ValveEventModel>> getHistory({int limit = 100}) async {
+    try {
+      final response = await _api.get('/valvulas/historial?limit=$limit');
+      final list = response.data['data'] as List;
+      return list.map((e) => ValveEventModel.fromJson(e)).toList();
     } catch (e) {
       throw Exception(handleError(e).mensaje);
     }

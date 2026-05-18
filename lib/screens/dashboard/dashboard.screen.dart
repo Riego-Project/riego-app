@@ -182,7 +182,7 @@ class _DashboardContent extends ConsumerWidget {
               _NavCard(
                 icon: Icons.schedule_rounded,
                 titulo: 'Horarios',
-                subtitulo: 'Riego automático',
+                subtitulo: 'Programa horarios de riego',
                 color: AppColors.warning,
                 onTap: () => context.go('/dashboard/horarios'),
               ),
@@ -192,6 +192,13 @@ class _DashboardContent extends ConsumerWidget {
                 subtitulo: 'Próximamente',
                 color: AppColors.textMuted,
                 onTap: null,
+              ),
+              _NavCard(
+                icon:     Icons.history_rounded,
+                titulo:   'Historial',
+                subtitulo: 'Eventos de riego',
+                color:    const Color(0xFF8B5CF6),
+                onTap:    () => context.go('/dashboard/historial'),
               ),
             ],
           ),
