@@ -103638,7 +103638,7 @@ f===$&&A.a()}else f=[]
 e=g==="FECHA_EXACTA"?m.at.aHu():null
 d=m.ax
 d===$&&A.a()
-l=A.an(["nombre",b,"tipo",j,"zoneId",i,"valveId",h,"modo",g,"dias",f,"fechaExacta",e,"hora",m.AM(d),"cierreAuto",m.ay,"duracionS",m.gAE()],t.N,t.X)
+l=A.an(["nombre",b,"tipo",j,"zonaId",i,"valveId",h,"modo",g,"dias",f,"fechaExacta",e,"hora",m.AM(d),"cierreAuto",m.ay,"duracionS",m.gAE()],t.N,t.X)
 p=4
 b=t.Sz
 s=m.a.d!=null?7:9
