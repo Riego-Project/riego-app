@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme/app_theme.dart';
 import '../../providers/auth.provider.dart';
+import '../../providers/notification.provider.dart';
 import '../../providers/valve.provider.dart';
+import '../notifications/notifications.screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -35,6 +37,41 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final count = ref.watch(unreadCountProvider);
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () =>
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        ).then(
+                          (_) =>
+                              ref.read(notificationProvider.notifier).clear(),
+                        ),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Cerrar sesión',
@@ -194,11 +231,11 @@ class _DashboardContent extends ConsumerWidget {
                 onTap: null,
               ),
               _NavCard(
-                icon:     Icons.history_rounded,
-                titulo:   'Historial',
+                icon: Icons.history_rounded,
+                titulo: 'Historial',
                 subtitulo: 'Eventos de riego',
-                color:    const Color(0xFF8B5CF6),
-                onTap:    () => context.go('/dashboard/historial'),
+                color: const Color(0xFF8B5CF6),
+                onTap: () => context.go('/dashboard/historial'),
               ),
             ],
           ),

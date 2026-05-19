@@ -3,7 +3,9 @@ import '../models/valve.model.dart';
 import '../repositories/valve.repository.dart';
 import '../services/socket.service.dart';
 
-final valveRepositoryProvider = Provider<ValveRepository>((ref) => ValveRepository());
+final valveRepositoryProvider = Provider<ValveRepository>(
+  (ref) => ValveRepository(),
+);
 
 class ValveNotifier extends AsyncNotifier<List<ValveModel>> {
   final _socket = SocketService();
@@ -53,6 +55,14 @@ class ValveNotifier extends AsyncNotifier<List<ValveModel>> {
         state = AsyncData(updated);
       });
     });
+
+    // Horario ejecutado
+    _socket.on('horario:ejecutado', (data) {
+      state.whenData((_) {
+        // Forzar refresh para actualizar estados de válvulas
+        ref.read(valveProvider.notifier).refresh();
+      });
+    });
   }
 
   Future<void> sendCommand(String valveId, String accion) async {
@@ -66,7 +76,7 @@ class ValveNotifier extends AsyncNotifier<List<ValveModel>> {
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
-          () => ref.read(valveRepositoryProvider).getAll(),
+      () => ref.read(valveRepositoryProvider).getAll(),
     );
   }
 }
