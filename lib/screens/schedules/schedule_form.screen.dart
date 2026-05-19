@@ -90,13 +90,14 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
         child: child!,
       ),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         if (esApertura)
           _horaApertura = picked;
         else
           _horaCierre = picked;
       });
+    }
   }
 
   Future<void> _pickDate() async {
@@ -125,7 +126,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
         child: child!,
       ),
     );
-    if (hora != null)
+    if (hora != null) {
       setState(() {
         _fechaExacta = DateTime(
           picked.year,
@@ -136,6 +137,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
         ).toUtc();
         _horaApertura = hora;
       });
+    }
   }
 
   Future<void> _guardar() async {
@@ -169,7 +171,7 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
     final data = {
       'nombre': _nombreCtrl.text.trim(),
       'tipo': _tipo,
-      'zoneId': _tipo == 'ZONA' ? _zonaId : null,
+      'zonaId': _tipo == 'ZONA' ? _zonaId : null,
       'valveId': _tipo == 'VALVULA' ? _valveDbId : null,
       'modo': _modo,
       'dias': _modo == 'SEMANAL' ? _dias : [],

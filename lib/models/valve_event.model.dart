@@ -1,13 +1,13 @@
 class ValveEventModel {
-  final int     id;
-  final String  accion;
-  final String  origen;
-  final bool    confirmado;
-  final int?    duracionS;
+  final int id;
+  final String accion;
+  final String origen;
+  final bool confirmado;
+  final int? duracionS;
   final DateTime createdAt;
-  final String  valveId;
-  final String  valveNombre;
-  final String  zoneNombre;
+  final String valveId;
+  final String valveNombre;
+  final String zoneNombre;
 
   const ValveEventModel({
     required this.id,
@@ -34,26 +34,30 @@ class ValveEventModel {
 
   String get origenTexto {
     switch (origen) {
-      case 'MANUAL':  return 'Manual';
-      case 'HORARIO': return 'Horario';
-      case 'SENSOR':  return 'Sensor';
-      default:        return 'Sistema';
+      case 'MANUAL':
+        return 'Manual';
+      case 'HORARIO':
+        return 'Horario';
+      case 'SENSOR':
+        return 'Sensor';
+      default:
+        return 'Sistema';
     }
   }
 
   factory ValveEventModel.fromJson(Map<String, dynamic> json) {
     return ValveEventModel(
-      id:          json['id'] is int
+      id: json['id'] is int
           ? json['id'] as int
           : int.parse(json['id'].toString()),
-      accion:      json['accion']     as String,
-      origen:      json['origen']     as String,
-      confirmado:  json['confirmado'] as bool,
-      duracionS:   json['duracionS']  as int?,
-      createdAt:   DateTime.parse(json['createdAt']),
-      valveId:     json['valve']['valveId']          as String,
-      valveNombre: json['valve']['nombre']            as String,
-      zoneNombre:  json['valve']['zone']['nombre']    as String,
+      accion: json['accion'] as String,
+      origen: json['origen'] as String,
+      confirmado: json['confirmado'] as bool,
+      duracionS: json['duracionS'] as int?,
+      createdAt: DateTime.parse(json['createdAt']),
+      valveId: json['valve']['valveId'] as String,
+      valveNombre: json['valve']['nombre'] as String,
+      zoneNombre: json['valve']['zone']['nombre'] as String,
     );
   }
 }
